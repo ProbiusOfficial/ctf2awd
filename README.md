@@ -10,3 +10,10 @@
 | Level 4  | 进阶加固 | 预留后门排查 (源码审计，计划任务，后门服务排查) |
 | Level 5  | 进阶加固 | 预留后门排查 (源码审计，计划任务，后门服务排查) |
 | Level 6  | 应急响应 | 不死马查杀                 |
+
+# 感谢
+[AabyssZG(曾哥) - 从零学习AWD比赛指导手册以及AWD脚本整理](https://github.com/AabyssZG/AWD-Guide)  
+
+[先知社区 - AWD比赛入门攻略总结](https://xz.aliyun.com/t/10995)  
+
+以及 **Wechat - 黑暗の大门内部群** 的群友们。
