@@ -51,6 +51,11 @@ USE ctf;
 create table $FLAG_TABLE (id varchar(300),data varchar(300));
 insert into $FLAG_TABLE values('$FLAG_COLUMN','$INSERT_FLAG');
 "
+# Write the flag to a file (update path as needed)
+echo $INSERT_FLAG | tee /flag
+
+# Set permissions for the flag file
+chmod 744 /flag
 
 # 启动PHP-FPM和Nginx服务
 php-fpm & nginx &

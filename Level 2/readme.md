@@ -45,7 +45,7 @@ echo "0" > /proc/sys/net/ipv4/icmp_echo_ignore_all     # 关闭禁ping
 
 ```bash
 passwd username                                     # ssh口令修改
-set password for mycms@localhost = password('123'); # MySQL密码修改
+set password for mycms@localhost = password('123'); # MySQL密码修改(注意为SQL语句)
 find /var/www/html -path '*config*'                # 查找配置文件中的密码凭证
 ```
 
@@ -78,6 +78,6 @@ scp -r /tmp/local_dir username@servername:remote_dir           # 从本地上传
 
 - 无伤修改 SSH口令、数据库口令（即修改未触发宕机惩罚），(WEB应用程序后台口令*:懒了，没做后台w，可以无视这点)。
 
-- 打包源码文件，命名为web.tar，将其放置到 /var 目录下。
+- 打包源码文件，命名为web.tar，将其放置到 /home/helloctf/ 目录下。
 
 - 完成后在终端输入 check.sh 以获取 flag。

@@ -35,34 +35,22 @@ else
     INSERT_FLAG="flag{TEST_Dynamic_FLAG}"
 fi
 
-echo "Run: insert into flag values('flag','$INSERT_FLAG');"
-
-# 将FLAG写入数据库
-if [[ -z $FLAG_COLUMN ]]; then
-    FLAG_COLUMN="flag"
-fi
-
-if [[ -z $FLAG_TABLE ]]; then
-    FLAG_TABLE="flag"
-fi
-
-mysql -u root -proot -e "
-USE ctf;
-create table $FLAG_TABLE (id varchar(300),data varchar(300));
-insert into $FLAG_TABLE values('$FLAG_COLUMN','$INSERT_FLAG');
-"
 
 # 创建数据库校验标识
-
-$RANDOM=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+random_flag=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 mysql -u root -proot -e "
 USE ctf;
-INSERT INTO metadata (key_name, value_text) VALUES ('flag', 'DatabaseIntegrityCheckFlag{$RANDOM}');
+INSERT INTO metadata (key_name, value_text) VALUES ('flag', 'DatabaseIntegrityCheckFlag{$random_flag}');
 "
-export RANDOM=$RANDOM
 
+echo $random_flag > /var/log/DB_FLAG
 
+# Write the flag to a file (update path as needed)
+echo $INSERT_FLAG | tee /flag
+
+# Set permissions for the flag file
+chmod 744 /flag
 
 # 启动PHP-FPM和Nginx服务
 php-fpm & nginx &

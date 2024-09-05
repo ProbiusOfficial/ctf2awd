@@ -9,7 +9,7 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list  && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     tar nginx bash default-mysql-client default-mysql-server \
-    libfreetype6-dev libpng-dev libjpeg-dev openssh-server && \
+    libfreetype6-dev libpng-dev libjpeg-dev openssh-server sshpass sudo && \
     rm -rf /var/lib/apt/lists/*
 
 # 配置mysql+gd

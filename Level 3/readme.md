@@ -36,17 +36,17 @@ ssh username@ip -p port
 数据库配置信息一般可以通过如config.php/web.conf等文件获取。
 
 ```bash
-mysqldump –u username –p password databasename > bak.sql
+mysqldump -u username -p password databasename > bak.sql
 ```
 
 备份所有数据库：
 
 ```bash
-mysqldump –all -databases > bak.sql
+mysqldump -all -databases > bak.sql
 ```
 
 导入数据库：
 
 ```bash
-mysql –u username –p password database < bak.sql
+mysql -u username -p password database < bak.sql
 ```

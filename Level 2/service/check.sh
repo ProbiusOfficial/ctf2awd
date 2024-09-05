@@ -9,7 +9,7 @@ SSH_USER="helloctf"
 SSH_PASS="123456"
 
 if echo "$SSH_PASS" | sshpass ssh -o StrictHostKeyChecking=no "$SSH_USER@localhost" 'exit' 2>/dev/null; then
-    echo "还搁这打别人呢，家都快没了|(*′口`)"
+    echo "还搁这打别人呢，家都快没了|(*′口\`)"
     echo "SSH还是弱口令，任务失败x"
     exit 1
 else
@@ -29,23 +29,24 @@ else
     echo "Database password changed successfully."
 fi
 
-# 检查 web 服务器 index.php 是否返回 "Connection failed!" 确定数据库密码同步配置文件修改
+# 检查 web 服务器 index.php 是否返回为空 为空则通过
 echo "Checking web server..."
 URL="http://localhost/index.php"
-EXPECTED_OUTPUT="Connection failed!"
+EXPECTED_OUTPUT=""
 ACTUAL_OUTPUT=$(curl -s "$URL")
-if [[ "$ACTUAL_OUTPUT" == *"$EXPECTED_OUTPUT"* ]]; then
-    echo "Web server check passed."
+
+if [[ "$ACTUAL_OUTPUT" == "$EXPECTED_OUTPUT" ]]; then
+    echo "Web server is working properly."
 else
     echo "你就瞎几把乱改吧，一改一个不吱声（*゜ー゜*）"
-    echo "网站因为你没同步数据库密码宕机了，你死了！"
+    echo "网站因为你没同步数据库密码而宕机了，你死了！"
     exit 1
 fi
 
 # 检查是否已打包源码文件
-echo "Checking if web.tar exists in /var..."
-if [ -f /var/web.tar ]; then
-    echo "web.tar exists in /var."
+echo "Checking if web.tar exists in /home/helloctf..."
+if [ -f /home/helloctf/web.tar ]; then
+    echo "web.tar exists in /home/helloctf."
 else
     echo "修改一时爽，还原火葬场，byd不备份，你就等死吧o(*≧▽≦)ツ"
     exit 1

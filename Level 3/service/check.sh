@@ -8,9 +8,7 @@ DB_NAME="ctf"
 # 从/flag文件获取flag
 FLAG=$(cat /flag)
 
-# 从环境变量中获取最初生成的随机值
-EXPECTED_RANDOM="$RANDOM"
-
+EXPECTED_RANDOM=$(cat /var/log/DB_FLAG)
 # 清空数据库
 echo "准备好了是吧，那么 RM -rf / 删库，跑路！！(雾"
 mysql -u"$DB_USER" -p"$DB_PASS" -e "DROP DATABASE IF EXISTS $DB_NAME; CREATE DATABASE $DB_NAME;" 2>/dev/null
@@ -18,8 +16,8 @@ mysql -u"$DB_USER" -p"$DB_PASS" -e "DROP DATABASE IF EXISTS $DB_NAME; CREATE DAT
 # 通知用户数据库已清空，并开始倒计时
 echo "哦豁，掉库辣！广快还原！"
 
-# 休眠 5 分钟
-sleep 300  # 300 秒 = 5 分钟
+# 休眠 20s
+sleep 20
 
 # 重新连接到数据库并检查恢复情况
 echo "时间差不多咯~"
@@ -30,6 +28,7 @@ USE $DB_NAME;
 SELECT value_text FROM metadata WHERE key_name = 'flag';
 " 2>/dev/null | tail -n 1)
 
+# echo "RESULT: $RESULT"
 # 验证结果
 if [[ "$RESULT" == "DatabaseIntegrityCheckFlag{$EXPECTED_RANDOM}" ]]; then
     echo "Congratulations! Database restored successfully. Here is your flag: $FLAG"
