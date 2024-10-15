@@ -44,10 +44,13 @@ RUN chown -R www-data:www-data /var/www/html
 RUN useradd -ms /bin/bash helloctf && \
     echo "helloctf:123456" | chpasswd
 
+# 设置SSH配置以允许密码登录
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
+    mkdir /var/run/sshd
+
 # 设置关卡信息
-
 COPY level-info.txt /etc/level-info.txt
-
 RUN rm -rf /etc/update-motd.d/* && \
     echo "" > /etc/motd && \
     echo "" >  /etc/issue.net && \
@@ -55,10 +58,6 @@ RUN rm -rf /etc/update-motd.d/* && \
     echo '#!/bin/sh\nif [ -f /etc/level-info.txt ]; then\n    cat /etc/level-info.txt\nfi' > /etc/update-motd.d/99-custom-message && \
     chmod +x /etc/update-motd.d/99-custom-message
 
-# 设置SSH配置以允许密码登录
-RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
-    mkdir /var/run/sshd
 
 # 拷贝容器入口点脚本
 COPY ./service/docker-entrypoint.sh /docker-entrypoint.sh

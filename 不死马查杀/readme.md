@@ -101,11 +101,15 @@ while (1){
 
 - 强行kill后台进程 `ps aux|grep www-data|awk '{print 2}'| xargs kill -9`
 
-- 使用竞争覆盖删除
+- 使用低Sleep方式竞争写入同名文件，覆盖不死马
 
-但由于大多数AWD环境使用Docker容器，并且权限限制较多，前两种方法通常不起作用，因此竞争覆盖删除成为最可靠的解决方案。
+- 基于文件系统规则，删除文件后立即创建对应木马的同名文件夹
 
-使用低Sleep方式竞争写入同名文件，覆盖不死马:
+但由于大多数AWD环境使用Docker容器，并且权限限制较多，前两种方法通常不起作用，因此后两者成为防御不死马最可靠的解决方案。
+
+****
+
+**使用低Sleep方式竞争写入同名文件，覆盖不死马:**
 
 ```php
 <?php
@@ -124,6 +128,8 @@ usleep(1000);
 ```bash
 echo "<?php set_time_limit(0); ignore_user_abort(1); unlink(__FILE__); while (1) { file_put_contents('shell.php', 'Noting'); usleep(10); } ?>" > /var/www/html/kill.php && timeout 5 curl http://127.0.0.1/kill.php
 ```
+
+
 ## 其他
 
 笔者在编写该关卡时，看到了另一种 PHP内存马的实现，感兴趣的师傅可以看看：[【利用 PHP-FPM 做内存马的方法】](https://tttang.com/archive/1720/)
