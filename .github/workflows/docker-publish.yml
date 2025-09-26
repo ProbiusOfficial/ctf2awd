@@ -1,0 +1,79 @@
+name: 自动构建并推送 Docker 镜像到 GHCR
+
+on:
+  push:
+    # 监测 main 或 master 分支的推送
+    branches: ["main", "master"]
+    # 监测所有以 'v' 开头的标签（tag）
+    tags:
+      - "v*"
+  # 允许手动从 GitHub 界面触发
+  workflow_dispatch:
+
+# 权限配置：读取代码，写入包（GHCR）
+permissions:
+  contents: read
+  packages: write
+
+# 通用环境变量
+env:
+  REGISTRY: ghcr.io
+  # 镜像名称，自动解析为 ghcr.io/<owner>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: 检出仓库代码 (支持中文文件名)
+      - name: 1. 检出代码
+        uses: actions/checkout@v4
+        with:
+          # 确保获取完整的历史记录，以便 metadata-action 正确处理 tag/sha
+          fetch-depth: 0
+
+      # Step 2: 设置 Buildx（启用 BuildKit，提供更好的构建和缓存性能）
+      - name: 2. 启用 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      # Step 3: 登录 GHCR
+      - name: 3. 登录到 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # 使用内置的 GITHUB_TOKEN 进行安全认证
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 4: 生成镜像标签与元数据
+      - name: 4. 提取 Docker 标签和元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # 默认分支（如 main/master）自动标记为 latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            # 分支名称作为标签
+            type=ref,event=branch
+            # Git 标签（如 v1.0.0）作为标签
+            type=ref,event=tag
+            # 提交 SHA 值的前 7 位作为标签
+            type=sha
+            
+      # Step 5: 构建并推送 Docker 镜像
+      - name: 5. 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          # 构建上下文路径（默认为仓库根目录）
+          context: .
+          # 是否推送：仅在 push 或 tag 事件时推送，PR 事件跳过
+          push: ${{ github.event_name != 'pull_request' }} 
+          # 使用上一步生成的标签
+          tags: ${{ steps.meta.outputs.tags }}
+          # 使用上一步生成的 Label (例如 org.opencontainers.image.revision)
+          labels: ${{ steps.meta.outputs.labels }}
+          # 启用缓存以加快重复构建速度
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
