@@ -41,9 +41,9 @@ jobs:
         # 注意：此处假设 Dockerfile 位于每个级别的第一层子目录中
         run: |
           # 查找所有包含 'Dockerfile' 文件的目录 (使用-mindepth 1 排除仓库根目录)
-          # 并使用 jq 转换为 GitHub Actions 期望的 JSON 格式
-          DIRS=$(find . -mindepth 1 -maxdepth 1 -type d -exec test -f {}/Dockerfile \; -print | sed 's/\.\///g' | jq -R . | jq -s .)
-          echo "Found directories: $DIRS"
+          # 核心修复：使用 jq -sc . 转换为紧凑的单行 JSON 数组，这对于 GITHUB_OUTPUT 至关重要。
+          DIRS=$(find . -mindepth 1 -maxdepth 1 -type d -exec test -f {}/Dockerfile \; -print | sed 's/\.\///g' | jq -R . | jq -sc .)
+          echo "Found directories (compact format): $DIRS"
           echo "dirs=$DIRS" >> $GITHUB_OUTPUT
 
   # Job 2: 针对每个子目录并行执行构建和推送
