@@ -26,7 +26,7 @@ jobs:
   find_dirs:
     runs-on: ubuntu-latest
     outputs:
-      # 将找到的目录列表作为 JSON 传递给下一个 Job
+      # 现在输出 JSON 对象的数组，每个对象包含 dir (中文名) 和 slug (安全名)
       dirs: ${{ steps.scan.outputs.dirs }}
     steps:
       - name: 1. 检出代码
@@ -35,28 +35,47 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 2. 扫描包含 Dockerfile 的子目录
+      - name: 2. 扫描并生成 Docker 安全 Slug
         id: scan
-        # 使用 find 命令查找所有包含 Dockerfile 的目录，并将其格式化为 JSON 数组
-        # 注意：此处假设 Dockerfile 位于每个级别的第一层子目录中
+        # 核心修改：使用 Bash 脚本循环处理中文目录名，并生成 Base64 编码的安全 Slug
         run: |
-          # 查找所有包含 'Dockerfile' 文件的目录 (使用-mindepth 1 排除仓库根目录)
-          # 核心修复：使用 jq -sc . 转换为紧凑的单行 JSON 数组，这对于 GITHUB_OUTPUT 至关重要。
-          DIRS=$(find . -mindepth 1 -maxdepth 1 -type d -exec test -f {}/Dockerfile \; -print | sed 's/\.\///g' | jq -R . | jq -sc .)
-          echo "Found directories (compact format): $DIRS"
-          echo "dirs=$DIRS" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          
+          # 1. 查找所有目录名
+          DIRS=$(find . -mindepth 1 -maxdepth 1 -type d -exec test -f {}/Dockerfile \; -print | sed 's/\.\///g')
+          
+          # 2. 初始化 JSON 数组内容
+          OUTPUT_JSON_ITEMS=""
+
+          # 3. 循环处理每个目录，生成 Base64 安全 slug
+          for DIR in $DIRS; do
+            # 使用 Base64 对中文目录名进行编码，保证 ASCII 安全性
+            # 转换规则：转小写、替换 '+' 为 '_'、替换 '/' 为 '-'、替换 '=' 为 '.'
+            SLUG=$(echo "$DIR" | base64 | tr -d '\n' | tr '[:upper:]' '[:lower:]' | tr '+' '_' | tr '/' '-' | tr '=' '.' | cut -c 1-30)
+            
+            # 构造 JSON 对象
+            ESCAPED_DIR=$(echo "$DIR" | sed 's/"/\\"/g')
+            
+            OUTPUT_JSON_ITEMS+=",{\"dir\":\"$ESCAPED_DIR\", \"slug\":\"$SLUG\"}"
+          done
+          
+          # 4. 组装最终的紧凑 JSON 数组
+          FINAL_JSON="[${OUTPUT_JSON_ITEMS#,}]" # 移除开头的逗号
+          
+          echo "Generated Matrix JSON (compact format): $FINAL_JSON"
+          echo "dirs=$FINAL_JSON" >> $GITHUB_OUTPUT
 
   # Job 2: 针对每个子目录并行执行构建和推送
   build_multi_image:
     needs: find_dirs
     runs-on: ubuntu-latest
     
-    # 关键：使用 matrix 策略并行运行 Job 1 找到的所有目录
+    # 关键修改：matrix 现在遍历 dir_data，其中包含中文 dir 和安全 slug
     strategy:
       fail-fast: false # 即使某个镜像构建失败，也继续构建其他镜像
       matrix:
-        # matrix.dir 将遍历 find_dirs Job 输出的所有目录名称 (包括中文名)
-        dir: ${{ fromJson(needs.find_dirs.outputs.dirs) }}
+        # matrix.dir_data 包含 { "dir": "中文路径", "slug": "安全标签" }
+        dir_data: ${{ fromJson(needs.find_dirs.outputs.dirs) }}
 
     steps:
       - name: 1. 检出代码
@@ -79,9 +98,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          # 核心修改：将目录名添加到镜像名称中，确保唯一性
-          # 镜像最终名称示例: ghcr.io/ProbiusOfficial/ctf2awd-SQL注入修复
-          images: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_NAME }}-${{ matrix.dir }}
+          # 核心修改：使用 matrix.dir_data.slug 作为镜像名称后缀
+          # 镜像最终名称示例: ghcr.io/ProbiusOfficial/ctf2awd-yulhhoumen...
+          images: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_NAME }}-${{ matrix.dir_data.slug }}
           tags: |
             # 默认分支自动标记为 latest
             type=raw,value=latest,enable={{is_default_branch}}
@@ -93,13 +112,13 @@ jobs:
             type=sha
             
       # 5. 构建并推送 Docker 镜像
-      - name: 5. 构建并推送 Docker 镜像 (${{ matrix.dir }})
+      - name: 5. 构建并推送 Docker 镜像 (${{ matrix.dir_data.dir }})
         uses: docker/build-push-action@v5
         with:
-          # 核心修改：将构建上下文设置为当前目录
-          context: ${{ matrix.dir }}
-          # 核心修改：明确指定 Dockerfile 路径
-          file: ${{ matrix.dir }}/Dockerfile
+          # 使用中文路径 matrix.dir_data.dir 作为构建上下文 (context)
+          context: ${{ matrix.dir_data.dir }}
+          # 使用中文路径 matrix.dir_data.dir 明确指定 Dockerfile 路径 (file)
+          file: ${{ matrix.dir_data.dir }}/Dockerfile
           # 是否推送：仅在 push 或 tag 事件时推送，PR 跳过
           push: ${{ github.event_name != 'pull_request' }} 
           tags: ${{ steps.meta.outputs.tags }}
