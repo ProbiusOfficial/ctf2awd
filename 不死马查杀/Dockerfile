@@ -3,9 +3,12 @@ FROM php:7.2-fpm-buster
 # 制作者信息
 LABEL auther_template="CTF-Archives"
 
-# 安装必要的软件包
-RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list  && \
-    sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list  && \
+COPY archive-key.gpg /etc/apt/trusted.gpg.d/freexian-archive-extended-lts.gpg
+# 添加主要的 Debian Buster 存档源
+RUN echo "deb http://archive.debian.org/debian buster main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian buster-updates main contrib non-free" >> /etc/apt/sources.list && \
+    # 添加 ELTS 源
+    echo "deb https://mirrors.cernet.edu.cn/debian-elts/ buster main contrib" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     tar nginx bash default-mysql-client default-mysql-server \

