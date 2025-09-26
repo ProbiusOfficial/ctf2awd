@@ -1,4 +1,4 @@
-name: 自动构建并推送 Docker 镜像到 GHCR
+name: 自动构建并推送 Docker 镜像到 GHCR (多文件夹)
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   # 允许手动从 GitHub 界面触发
   workflow_dispatch:
 
-# 权限配置：读取代码，写入包（GHCR）
+# 权限配置：读取代码、写入包（GHCR）
 permissions:
   contents: read
   packages: write
@@ -18,42 +18,72 @@ permissions:
 # 通用环境变量
 env:
   REGISTRY: ghcr.io
-  # 镜像名称，自动解析为 ghcr.io/<owner>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+  # 基础镜像名称，例如 ProbiusOfficial/ctf2awd
+  BASE_IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  # Job 1: 发现所有包含 Dockerfile 的子目录
+  find_dirs:
+    runs-on: ubuntu-latest
+    outputs:
+      # 将找到的目录列表作为 JSON 传递给下一个 Job
+      dirs: ${{ steps.scan.outputs.dirs }}
+    steps:
+      - name: 1. 检出代码
+        uses: actions/checkout@v4
+        # 确保获取完整的历史记录，支持中文文件名
+        with:
+          fetch-depth: 0
+
+      - name: 2. 扫描包含 Dockerfile 的子目录
+        id: scan
+        # 使用 find 命令查找所有包含 Dockerfile 的目录，并将其格式化为 JSON 数组
+        # 注意：此处假设 Dockerfile 位于每个级别的第一层子目录中
+        run: |
+          # 查找所有包含 'Dockerfile' 文件的目录 (使用-mindepth 1 排除仓库根目录)
+          # 并使用 jq 转换为 GitHub Actions 期望的 JSON 格式
+          DIRS=$(find . -mindepth 1 -maxdepth 1 -type d -exec test -f {}/Dockerfile \; -print | sed 's/\.\///g' | jq -R . | jq -s .)
+          echo "Found directories: $DIRS"
+          echo "dirs=$DIRS" >> $GITHUB_OUTPUT
+
+  # Job 2: 针对每个子目录并行执行构建和推送
+  build_multi_image:
+    needs: find_dirs
     runs-on: ubuntu-latest
     
+    # 关键：使用 matrix 策略并行运行 Job 1 找到的所有目录
+    strategy:
+      fail-fast: false # 即使某个镜像构建失败，也继续构建其他镜像
+      matrix:
+        # matrix.dir 将遍历 find_dirs Job 输出的所有目录名称 (包括中文名)
+        dir: ${{ fromJson(needs.find_dirs.outputs.dirs) }}
+
     steps:
-      # Step 1: 检出仓库代码 (支持中文文件名)
       - name: 1. 检出代码
         uses: actions/checkout@v4
         with:
-          # 确保获取完整的历史记录，以便 metadata-action 正确处理 tag/sha
           fetch-depth: 0
 
-      # Step 2: 设置 Buildx（启用 BuildKit，提供更好的构建和缓存性能）
       - name: 2. 启用 Docker Buildx
         uses: docker/setup-buildx-action@v3
         
-      # Step 3: 登录 GHCR
       - name: 3. 登录到 GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          # 使用内置的 GITHUB_TOKEN 进行安全认证
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 4: 生成镜像标签与元数据
+      # 4. 生成镜像标签与元数据
       - name: 4. 提取 Docker 标签和元数据
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # 核心修改：将目录名添加到镜像名称中，确保唯一性
+          # 镜像最终名称示例: ghcr.io/ProbiusOfficial/ctf2awd-SQL注入修复
+          images: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_NAME }}-${{ matrix.dir }}
           tags: |
-            # 默认分支（如 main/master）自动标记为 latest
+            # 默认分支自动标记为 latest
             type=raw,value=latest,enable={{is_default_branch}}
             # 分支名称作为标签
             type=ref,event=branch
@@ -62,18 +92,17 @@ jobs:
             # 提交 SHA 值的前 7 位作为标签
             type=sha
             
-      # Step 5: 构建并推送 Docker 镜像
-      - name: 5. 构建并推送 Docker 镜像
+      # 5. 构建并推送 Docker 镜像
+      - name: 5. 构建并推送 Docker 镜像 (${{ matrix.dir }})
         uses: docker/build-push-action@v5
         with:
-          # 构建上下文路径（默认为仓库根目录）
-          context: .
-          # 是否推送：仅在 push 或 tag 事件时推送，PR 事件跳过
+          # 核心修改：将构建上下文设置为当前目录
+          context: ${{ matrix.dir }}
+          # 核心修改：明确指定 Dockerfile 路径
+          file: ${{ matrix.dir }}/Dockerfile
+          # 是否推送：仅在 push 或 tag 事件时推送，PR 跳过
           push: ${{ github.event_name != 'pull_request' }} 
-          # 使用上一步生成的标签
           tags: ${{ steps.meta.outputs.tags }}
-          # 使用上一步生成的 Label (例如 org.opencontainers.image.revision)
           labels: ${{ steps.meta.outputs.labels }}
-          # 启用缓存以加快重复构建速度
           cache-from: type=gha
           cache-to: type=gha,mode=max
