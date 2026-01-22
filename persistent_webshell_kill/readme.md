@@ -129,6 +129,10 @@ usleep(1000);
 echo "<?php set_time_limit(0); ignore_user_abort(1); unlink(__FILE__); while (1) { file_put_contents('shell.php', 'Noting'); usleep(10); } ?>" > /var/www/html/kill.php && timeout 5 curl http://127.0.0.1/kill.php
 ```
 
+```bash
+echo "<?php system('echo 111 > shell.php && chmod 400 shell.php'); ?>" > /var/www/h
+tml/kill.php &&  curl http://127.0.0.1/kill.php
+```
 
 ## 其他
 
